@@ -1,0 +1,43 @@
+name: Build and Deploy MCP Server to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to ACR
+        run: |
+          echo ${{ secrets.ACR_PASSWORD }} | docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} --password-stdin
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/mcp-server:$IMAGE_TAG .
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/mcp-server:$IMAGE_TAG
+          echo "IMAGE=${{ secrets.ACR_LOGIN_SERVER }}/mcp-server:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Deploy to Azure Container Apps
+        run: |
+          if [ "${GITHUB_REF##*/}" = "main" ]; then
+            APP_NAME="mcp-server-prod"
+          else
+            APP_NAME="mcp-server-dev"
+          fi
+          az containerapp update \
+            --name $APP_NAME \
+            --resource-group MCP-RG \
+            --image $IMAGE
