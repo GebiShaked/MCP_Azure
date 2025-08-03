@@ -12,5 +12,5 @@ class MCPRequest(BaseModel):
 @app.post("/mcp")
 async def handle_mcp(req: MCPRequest):
     if req.method == "ping":
-        return {"result": "pong"}
+        return {"result": "pong from dev"}
     return {"error": "Unknown method"}
